@@ -1,10 +1,14 @@
 import click
-import logging as log
 
-
+@click.group()
 def KernelPheno():
     """ Kernel Vitreousness project management and phenotyping tools """
     pass
 
 
-from data import *
+from zooexp import *
+from preprocess import *
+
+
+if __name__ == '__main__':
+    KernelPheno()
