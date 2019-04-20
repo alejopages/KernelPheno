@@ -72,7 +72,7 @@ def zooexp(export, output):
                   'bounding_boxes']
 
     target[final_inds].to_csv(
-        osp.join(output, "report_" + dt.now().isoformat() + ".csv")
+        osp.join(output, "report_" + dt.now().strftime("%m-%d-%y:%X") + ".csv")
     )
 
     return
