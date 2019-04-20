@@ -2,9 +2,10 @@ from main import KernelPheno
 
 import os.path as osp
 import click
+import json
+from datetime import datetime as dt
 
 import pandas as pd
-import json
 
 
 @click.command()
@@ -14,8 +15,8 @@ import json
 @click.option(
     '-o',
     'output',
-    help='The output file',
-    default='./report.csv'
+    help='Path to the ouput file',
+    default='../data'
 )
 def zooexp(export, output):
 
@@ -70,7 +71,9 @@ def zooexp(export, output):
                   'ratings',
                   'bounding_boxes']
 
-    target[final_inds].to_csv(output)
+    target[final_inds].to_csv(
+        osp.join(output, "report_" + dt.now().isoformat() + ".csv")
+    )
 
     return
 
