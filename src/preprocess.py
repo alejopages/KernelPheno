@@ -1,5 +1,6 @@
 from main import KernelPheno
 from utils import get_image_regex_pattern
+from _segmentation_methods import *
 
 import click
 import os.path as osp
@@ -42,7 +43,7 @@ SEGMENTATION FUNCTION
 @click.option(
     '-t',
     '--type',
-    help='The type of image to be segmented'
+    help='The type of image to be segmented',
     type=click.Choice(['gray', 'color']),
     required=True
 )
@@ -51,7 +52,7 @@ SEGMENTATION FUNCTION
     '--method',
     help='The method used to do the segmentation',
     type=click.Choice(['kmeans']),
-    default='kmeans'
+    required=True
 )
 @click.option(
     '-e',
@@ -71,19 +72,22 @@ def segmentation(img_path, type, method, extension):
     images = []
 
     if PATTERN.match(img_path) and not osp.isdir(img_path):
-        images.append(img_path)
+        images.append(osp.abspath(img_path))
     else:
         for img in osp.listdir(img_path):
             if PATTERN.match(img):
-                images.append(img)
+                images.append(osp.abspath(img))
 
-    if img_path = []:
+    if images == []:
         print("There were no images in the specified path")
         print("Check that the image(s) has a valid file extension")
         return
 
+    if type == 'kmeans':
 
+        from segmentation_method import kmeans_gray
 
+        kmeans_gray(images)
 
 
 KernelPheno.add_command(convert)

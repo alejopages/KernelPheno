@@ -15,18 +15,24 @@ import pandas as pd
 @click.option(
     '-o',
     'output',
-    help='Path to the ouput file',
-    default='../data'
+    help='Path to the ouput file'
 )
-def zooexp(export, output):
+@click.option(
+    '-m',
+    '--merge',
+    help='Merge to existing export',
+    nargs=1,
+    default=False
+)
+def zooexp(export, output, merge):
 
     # load all data
     try:
         data = pd.read_csv(export)
     except FileNotFoundError as fnfe:
-        log.info("Could not find export file.")
-        log.info(fnfe.output)
-        exit(-1)
+        print("Could not find export file: " + export)
+        print(fnfe)
+        exit()
 
     target = data[['annotations', 'subject_data']]
 
@@ -60,9 +66,6 @@ def zooexp(export, output):
         num_objects=target.apply(_get_cmp_kernel_count, axis=1)
     )
 
-    # sort by filename
-    target = target.sort_values('filename', kind='mergesort')
-
     # output report
     final_inds = ['filename',
                   'num_ratings',
@@ -71,13 +74,30 @@ def zooexp(export, output):
                   'ratings',
                   'bounding_boxes']
 
-    target[final_inds].to_csv(
+    final_data = target[final_inds]
+
+    if merge:
+        print("Merging dataframes")
+        try:
+            previous_data = pd.read_csv(merge)
+            final_data = final_data.append(previous_data[final_inds], sort=False)
+        except FileNotFoundError as fnfe:
+            print("Could not find export file: " + merge)
+            print(fnfe)
+            exit()
+
+    # sort by filename
+    final_data = final_data.sort_values('filename')
+
+    final_data.to_csv(
         osp.join(output, "report_" + dt.now().strftime("%m-%d-%y:%X") + ".csv")
     )
 
     return
 
+
 KernelPheno.add_command(zooexp)
+
 
 def _get_img_name(subject_data_entry):
     subject_data = json.loads(subject_data_entry)
@@ -138,10 +158,8 @@ def _recursive_len(item):
         return 1
 
 
+# NOT BEING USED
 def _set_err_msg(annotation_entry):
-    '''
-    Not being used
-    '''
     # It might be an old annotation with task 'T0'
     # check and return a message
     if len(annotation_entry) == 1 and 'T0' == annotation_entry.pop()['task']:
