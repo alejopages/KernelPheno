@@ -1,11 +1,10 @@
 from main import KernelPheno
 from utils import get_image_regex_pattern
-from _segmentation_methods import *
+from segmentation import *
 
 import click
 import os.path as osp
 import subprocess as sp
-
 
 '''
 CONVERSION FROM MISC IMAGE FORMATS TO JPG OR OTHERWISE SPECIFIED FORMAT
@@ -32,6 +31,9 @@ def convert(dir, format):
     return
 
 
+KernelPheno.add_command(convert)
+
+
 '''
 SEGMENTATION FUNCTION
 '''
@@ -51,7 +53,7 @@ SEGMENTATION FUNCTION
     '-m',
     '--method',
     help='The method used to do the segmentation',
-    type=click.Choice(['kmeans']),
+    type=click.Choice(['thresh']),
     required=True
 )
 @click.option(
@@ -62,12 +64,14 @@ SEGMENTATION FUNCTION
     multiple=True,
     default=None
 )
-def segmentation(img_path, type, method, extension):
-    '''
-    Segment the kernels in the image or images
-    img_path: path to image or image directory
-    '''
-
+@click.option(
+    '-o',
+    '--output',
+    help='Output directory',
+    default=None
+)
+def segmentation(img_path, type, method, extension, output):
+    ''' Segment the kernels in the image or images '''
     PATTERN = get_image_regex_pattern(extension)
     images = []
 
@@ -83,15 +87,12 @@ def segmentation(img_path, type, method, extension):
         print("Check that the image(s) has a valid file extension")
         return
 
-    if type == 'kmeans':
-
-        from segmentation_method import kmeans_gray
-
-        kmeans_gray(images)
+    if method == 'thresh':
+        draw_bounding_boxes(images, output)
 
 
-KernelPheno.add_command(convert)
 KernelPheno.add_command(segmentation)
+
 
 if __name__ == '__main__':
     segmentation()
