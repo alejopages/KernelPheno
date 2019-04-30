@@ -94,5 +94,11 @@ def segmentation(img_path, type, method, extension, output):
 KernelPheno.add_command(segmentation)
 
 
+def generate_dataset():
+    '''
+    Output dims for AlexNet = (227,227,3)
+    '''
+
+
 if __name__ == '__main__':
     segmentation()
