@@ -48,12 +48,12 @@ def create_name_from_path(file_path, pre_ext, out_dir=False):
     return out_path
 
 
-def show_image(image, cmap=None):
+def show_image(image, gray=False):
     '''
     Simply plots the image
     '''
-    if cmap:
-        plt.imshow(image, cmap=cmap)
+    if gray:
+        plt.imshow(image, cmap='gray')
     else:
         plt.imshow(image)
     plt.show()
