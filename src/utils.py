@@ -1,7 +1,11 @@
 import re
 import os.path as osp
 import matplotlib.pyplot as plt
+import logging
 
+from .logger import get_logger
+
+log = get_logger(level=logging.DEBUG)
 
 def get_image_regex_pattern(extension=()):
     '''
@@ -29,12 +33,12 @@ def create_name_from_path(file_path, pre_ext=[], out_dir=False):
     extensions = osp.basename(file_path).split(".")
     for i, ext in enumerate(pre_ext):
         if ext in extensions:
-            print(
+            log.debug(
                 "File: " + osp.basename(file_path)\
                 + " already has extension: " \
                 + ext
             )
-            print("Ommitting from final filename")
+            log.debug("Ommitting from final filename")
             pre_ext.pop(i)
 
     out_path    = ".".join(file_path.split(".")[:-1]) \
@@ -50,9 +54,7 @@ def create_name_from_path(file_path, pre_ext=[], out_dir=False):
 
 
 def is_gray(image):
-    if len(image.shape) == 2:
-        return True
-    return False
+    return True if len(image.shape) == 2 else False
 
 
 def show_image(image):
