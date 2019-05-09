@@ -1,4 +1,4 @@
-from main import KernelPheno
+from .main import KernelPheno
 
 import os.path as osp
 import click
@@ -25,7 +25,9 @@ import pandas as pd
     default=False
 )
 def zooexp(export, output, merge):
-
+    '''
+    Process zooniverse export
+    '''
     # load all data
     try:
         data = pd.read_csv(export)

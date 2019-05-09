@@ -2,7 +2,8 @@ import re
 import os.path as osp
 import matplotlib.pyplot as plt
 
-def get_image_regex_pattern(extension):
+
+def get_image_regex_pattern(extension=()):
     '''
     Returns a regex pattern useful for grabbing filenames with image filename
     extensions
@@ -18,7 +19,7 @@ def get_image_regex_pattern(extension):
     return re.compile(patter_str)
 
 
-def create_name_from_path(file_path, pre_ext, out_dir=False):
+def create_name_from_path(file_path, pre_ext=[], out_dir=False):
     '''
     Inserts custom tags seperated by dots between filename and extension
     '''
@@ -48,11 +49,17 @@ def create_name_from_path(file_path, pre_ext, out_dir=False):
     return out_path
 
 
-def show_image(image, gray=False):
+def is_gray(image):
+    if len(image.shape) == 2:
+        return True
+    return False
+
+
+def show_image(image):
     '''
     Simply plots the image
     '''
-    if gray:
+    if len(image.shape) == 2:
         plt.imshow(image, cmap='gray')
     else:
         plt.imshow(image)

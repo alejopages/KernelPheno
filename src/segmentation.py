@@ -18,6 +18,78 @@ import argparse
 from utils import create_name_from_path, show_image
 
 
+def normalize_images(img_paths, out_dir=False, plot=False, cmap=None):
+    '''
+    Normalize the images with respect to the background pixels for all provided
+    images
+    '''
+    print('Normalizing images')
+    if plot:
+        fig, ax = plt.subplots(nrows=1, ncols=2)
+
+    bg_avg = _get_bg_avg(img_paths, cmap=cmap)
+
+    if bg_avg is None and not cmap == 'gray':
+        print("There were no rgb images in the directory")
+        return
+
+    for img_file in img_paths:
+        print('Normalizing ' + img_file)
+        try:
+            img = img_as_float(imread(img_file, as_gray=(True if cmap == 'gray' else False)))
+            if len(img.shape) == 2 and not cmap == 'gray':
+                print("Expected rgb image, got grayscale")
+                print("Skipping ...")
+                continue
+        except FileNotFoundError as fnfe:
+            print(fnfe)
+
+        filter = _get_filter(img)
+        masked = img.copy()
+
+        if cmap == 'gray':
+            masked[invert(filter)] = 0
+        else:
+            masked[invert(filter)] = [0,0,0]
+
+        diff = bg_avg - np.mean(masked)
+
+        print('Background diff: ' + str(diff))
+        normed = img + diff
+
+        if cmap == 'gray':
+            normed[normed > 1.0] = 1.0
+            normed[normed < -1.0] = -1.0
+
+        if plot:
+            print('Plotting')
+            ax[0].set_title('Original')
+            ax[1].set_title('Normalized')
+            exts = ['fig']
+            if cmap is not None:
+                exts.append(cmap)
+            ax[0].imshow(img, cmap=cmap)
+            ax[1].imshow(normed, cmap=cmap)
+            fig_name = create_name_from_path(img_file, exts, out_dir=out_dir)
+            print('Saving figure: ' + fig_name)
+            plt.savefig(fig_name)
+
+        exts = ['norm']
+        if cmap is not None:
+            exts = [cmap]
+
+        try:
+            out_name = create_name_from_path(img_file, exts, out_dir=out_dir)
+            print('Saving file: ' + out_name)
+            imsave(out_name, normed)
+        except OSError as ose:
+            print(ose)
+        except ValueError as ve:
+            print(ve)
+        finally:
+            print(img_file)
+
+
 def draw_bounding_boxes(img_paths, out_dir=False, cmap=None):
     '''
     Takes the minr minc maxr maxc coordinates of bounding boxes
@@ -50,7 +122,7 @@ def draw_bounding_boxes(img_paths, out_dir=False, cmap=None):
     return
 
 
-def plot_bbxs(img, regions, ax, cmap=None, out=None):
+def plot_bbx(img, regions, ax, cmap=None, out=None):
     ax.imshow(img, cmap=cmap)
 
     for i, (minr, minc, maxr, maxc) in enumerate(regions):
@@ -155,15 +227,7 @@ def test_get_thumbnails():
 
 
 def _get_filter(image):
-    '''
-    Get's the binary filter of the segmented image
-    '''
-    print('Getting image background filter')
-    if len(image.shape) == 3:
-        image = rgb2gray(image)
-    thresh = threshold_otsu(image)
-    bw = closing(image > thresh, square(3))
-    return bw
+
 
 
 def _get_bg_avg(img_paths, cmap=None):
@@ -209,78 +273,6 @@ def _get_bg_avg(img_paths, cmap=None):
 
     print('Mean: ' + str(mean))
     return mean
-
-
-def normalize_images(img_paths, out_dir=False, plot=False, cmap=None):
-    '''
-    Normalize the images with respect to the background pixels for all provided
-    images
-    '''
-    print('Normalizing images')
-    if plot:
-        fig, ax = plt.subplots(nrows=1, ncols=2)
-
-    bg_avg = _get_bg_avg(img_paths, cmap=cmap)
-
-    if bg_avg is None and not cmap == 'gray':
-        print("There were no rgb images in the directory")
-        return
-
-    for img_file in img_paths:
-        print('Normalizing ' + img_file)
-        try:
-            img = img_as_float(imread(img_file, as_gray=(True if cmap == 'gray' else False)))
-            if len(img.shape) == 2 and not cmap == 'gray':
-                print("Expected rgb image, got grayscale")
-                print("Skipping ...")
-                continue
-        except FileNotFoundError as fnfe:
-            print(fnfe)
-
-        filter = _get_filter(img)
-        masked = img.copy()
-
-        if cmap == 'gray':
-            masked[invert(filter)] = 0
-        else:
-            masked[invert(filter)] = [0,0,0]
-
-        diff = bg_avg - np.mean(masked)
-
-        print('Background diff: ' + str(diff))
-        normed = img + diff
-
-        if cmap == 'gray':
-            normed[normed > 1.0] = 1.0
-            normed[normed < -1.0] = -1.0
-
-        if plot:
-            print('Plotting')
-            ax[0].set_title('Original')
-            ax[1].set_title('Normalized')
-            exts = ['fig']
-            if cmap is not None:
-                exts.append(cmap)
-            ax[0].imshow(img, cmap=cmap)
-            ax[1].imshow(normed, cmap=cmap)
-            fig_name = create_name_from_path(img_file, exts, out_dir=out_dir)
-            print('Saving figure: ' + fig_name)
-            plt.savefig(fig_name)
-
-        exts = ['norm']
-        if cmap is not None:
-            exts = [cmap]
-
-        try:
-            out_name = create_name_from_path(img_file, exts, out_dir=out_dir)
-            print('Saving file: ' + out_name)
-            imsave(out_name, normed)
-        except OSError as ose:
-            print(ose)
-        except ValueError as ve:
-            print(ve)
-        finally:
-            print(img_file)
 
 
 def test_gray_normal():
