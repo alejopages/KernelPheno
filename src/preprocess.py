@@ -1,53 +1,56 @@
 from skimage.segmentation import slic, clear_border
-from skimage.io import imread
+from skimage.io import imread, imsave
 from skimage.color import rgb2gray, gray2rgb
 from skimage.measure import label, regionprops
 from skimage.filters import threshold_otsu, gaussian
 from skimage.color import label2rgb
 from skimage.morphology import closing, square
 from skimage.util import invert
-from skimage import img_as_float, img_as_int
+from skimage import img_as_float, img_as_int, img_as_ubyte
+from skimage.transform import resize
+
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-
+import pandas as pd
 import numpy as np
 import os
 import os.path as osp
 import logging
+import click
+import subprocess as sp
+import traceback as tb
 
-from .logger import get_logger
-from .main import KernelPheno
-from utils import get_image_regex_pattern, show_image, is_gray
+from logger import get_logger
+from main import KernelPheno
+from utils import get_image_regex_pattern, show_image, is_gray, create_name_from_path
 
 log = get_logger(level=logging.DEBUG)
 
 ''' GENERATE DATASET '''
+@click.command()
 @click.argument(
     'indir'
 )
 @click.argument(
     'outdir'
 )
-@click.arguement(
-    'type',
-    type=click.Choice(['gray', 'rgb'])
-)
+# @click.argument(
+#     'type',
+#     type=click.Choice(['gray', 'rgb'])
+# )
 @click.argument(
     'anno_file'
 )
 
-def generate_dataset(indir, outdir, type, anno_file):
+def generate_dataset(indir, outdir, anno_file):
     '''
     params
     '''
-    # Output dims for AlexNet = (227,227,3)
 
     '''
     * create a folder in outdir for each annotation (1-5)
     * load annotations file
-    * get bg_avg
-    * loop through and load images from annotations
-    *   Normalize image
+    * loop through and load images from annotations (note, discard the file extensions)
     *   Get bounding boxes for image
     *   Compare number of bboxes to number of objects in annotation
     *   loop through bounding boxes and get vitr annotation
@@ -55,12 +58,89 @@ def generate_dataset(indir, outdir, type, anno_file):
     *       resize to AlexNet dims
     *       save in annotation's directory
     '''
+
+    DIMS = (227,227,3)  # Input dims for AlexNet = (227,227,3)
+
+
     sp.run(['mkdir', '-p', outdir])
     for i in range(1, 6):
-        sp.run(['mkdir', osp.join(outdir, str(i))])
+        sp.run(['mkdir', '-p', osp.join(outdir, str(i))])
+
+    bbox_dir = osp.join(outdir, 'bboxes')
+    bbox_err_dir = osp.join(outdir, 'err_bboxes')
+    sp.run(['mkdir', '-p', bbox_dir])
+    sp.run(['mkdir', '-p', bbox_err_dir])
+
+    bbox_err_count = 0
+
+    try:
+        annotations = pd.read_csv(anno_file)
+        # convert the ratings strings to lists
+        annotations['ratings'] = annotations['ratings'].apply(eval)
+
+    except FileNotFoundError as fnfe:
+        log.error(fnfe)
+        exit()
+
+    errlog = open(osp.join(outdir, "dataset_generation_errors.log"), "w")
+
+    for i, row in annotations.iterrows():
+        log.info("Processing " + row['filename'])
+        image_path = osp.join(indir, row['filename'])
+        if not osp.isfile(image_path):
+            log.error("Could not locate " + str(image_path))
+            errlog.write(image_path + " DNE\n")
+            continue
+        try:
+            image = imread(image_path)
+            if len(image.shape) == 2:
+                image = gray2rgb(image)
+        except Exception as e:
+            log.error("Failed to load " + image_path)
+            log.error(e)
+            tb.print_exc()
+            continue
+
+        bboxes = get_sorted_bboxes(image)
+
+        plot_bbx(image, bboxes)
 
 
-    pass
+        if len(bboxes) != row['num_objects']:
+            log.error("Count of objects in image did not match: ")
+            errlog.write(image_path + " object count discrepency\n")
+            out_fname = osp.join(bbox_err_dir, row['filename'])
+            plt.savefig(out_fname)
+            bbox_err_count += 1
+            continue
+        else:
+            out_fname = osp.join(bbox_dir, row['filename'])
+            plt.savefig(out_fname)
+
+        # squash 2d list to 1d
+        ratings = [entry for line in row['ratings'] for entry in line]
+
+        log.info("Getting thumbnails")
+        for j, bbox in enumerate(bboxes):
+            anno = ratings[j]
+            minr, minc, maxr, maxc = bbox
+            thumbnail = image[minr:maxr, minc:maxc]
+            resized = resize(thumbnail, DIMS)
+            out_image = img_as_ubyte(resized)
+            out_fname = osp.join(outdir, str(anno), str(j) + "_" + row['filename'])
+            imsave(out_fname, out_image)
+            # resize to AlexNet dims
+            # save thumbnail to annotation directory
+
+    log.info("Number of bbox errors: " + str(bbox_err_count))
+
+    errlog.close()
+
+    return
+
+
+KernelPheno.add_command(generate_dataset)
+
 
 ''' CONVERSION FROM MISC IMAGE FORMATS TO JPG OR OTHERWISE SPECIFIED FORMAT '''
 
@@ -204,7 +284,7 @@ def normalize(indir, outdir, type, plot):
                 else:
                     ax[0].imshow(image)
                     ax[1].imshow(normed)
-                figname = create_name_from_path(image_path, ('fig'), outdir)
+                figname = create_name_from_path(image_path, ('fig'), out_dir=outdir)
                 plt.savefig(figname)
 
             out_fname = create_name_from_path(image_path, out_dir=outdir)
@@ -261,9 +341,11 @@ def plot_bbox(indir, outdir):
 KernelPheno.add_command(plot_bbox)
 
 
+''' FUNCTIONS '''
+
 def norm(image, bg_avg):
 
-    log.debug('Normalizing image')
+    log.info('Normalizing image')
 
     gray = True if is_gray(image) else False
 
@@ -280,7 +362,7 @@ def norm(image, bg_avg):
 
     diff = bg_avg - np.mean(masked, axis=(0,1))
 
-    log.debug('Background diff: ' + str(diff))
+    log.info('Background diff: ' + str(diff))
 
     normed = image + diff
 
@@ -305,7 +387,7 @@ def test_norm():
 
 
 def segment_image(image):
-    log.debug('Segmenting image')
+    log.info('Segmenting image')
     filter = _get_background_filter(image)
     masked = image.copy()
     if is_gray(image):
@@ -318,7 +400,7 @@ def segment_image(image):
 def get_bg_avg(indir, PATTERN, type):
     ''' Get the background mean pixel values '''
 
-    log.debug('Gettind background pixel average')
+    log.info('Gettind background pixel average')
 
     if type == 'gray':
         sum = 0
@@ -327,7 +409,7 @@ def get_bg_avg(indir, PATTERN, type):
 
     img_count = 0
     for image_path in os.listdir(indir):
-        log.debug('Processing ' + image_path)
+        log.info('Processing ' + image_path)
         if not PATTERN.match(image_path): continue
         try:
             if type == 'gray':
@@ -354,7 +436,7 @@ def get_bg_avg(indir, PATTERN, type):
         img_count += 1
     try:
         mean = sum / float(img_count)
-        log.debug('All image background average: ' + str(mean))
+        log.info('All image background average: ' + str(mean))
     except ZeroDivisionError as zde:
         log.error('Zero division error, must not have had any images in indir')
         raise zde
@@ -386,7 +468,7 @@ def plot_bbx(image, bboxes):
 
 def get_sorted_bboxes(image):
     ''' Generate the sorted bounding boxes '''
-    log.debug('Getting sorted bounding boxes')
+    log.info('Getting sorted bounding boxes')
     filter = _get_background_filter(image)
     cleared = clear_border(filter)
     label_image = label(cleared)
@@ -394,6 +476,7 @@ def get_sorted_bboxes(image):
     for region in regionprops(label_image, coordinates='rc'):
         if (region.area < 1000) \
             or (region.area > 100000) \
+            or ((region.major_axis_length / region.minor_axis_length) < 0.2) \
             or ((region.minor_axis_length / region.major_axis_length) < 0.2):
             continue
 
@@ -436,16 +519,16 @@ def _sort_bbxs(regions, num_rows):
 
 
 def _get_background_filter(image):
-    '''
-    Get's the binary filter of the segmented image
-    '''
-    log.debug('Getting image background filter')
+    ''' Get's the binary filter of the segmented image '''
+    log.info('Getting image background filter')
     if not is_gray(image):
         image = rgb2gray(image)
     thresh = threshold_otsu(image)
     bw = closing(image > thresh, square(3))
     return invert(bw)
 
-#
-# if __name__ == '__main__':
-#     test_normalize()
+
+if __name__ == '__main__':
+    generate_dataset(r'/home/apages/SCHNABLELAB/pysrc/KernelPheno/data/images',
+                     r'/home/apages/SCHNABLELAB/pysrc/KernelPheno/data/dataset',
+                     r'/home/apages/SCHNABLELAB/pysrc/KernelPheno/report.clean.csv')

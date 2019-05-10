@@ -1,4 +1,5 @@
-from .main import KernelPheno
+from main import KernelPheno
+from utils import create_name_from_path
 
 import os.path as osp
 import click
@@ -14,7 +15,7 @@ import pandas as pd
 )
 @click.option(
     '-o',
-    'output',
+    '--output',
     help='Path to the ouput file'
 )
 @click.option(
@@ -101,6 +102,36 @@ def zooexp(export, output, merge):
 KernelPheno.add_command(zooexp)
 
 
+# @click.command()
+# @click.argument(
+#     'report'
+# )
+
+def clean_report(anno_file):
+    ''' Clean the report '''
+    try:
+        data = pd.read_csv(anno_file)
+    except FileNotFoundError as fnfe:
+        print(fnfe)
+        exit()
+
+    # these will be redone
+    data = data[
+            (data['num_objects'] != 0)
+            & (data['num_objects'] != -1)
+    ]
+
+    # remove duplicate entries, pandas decides which ones to remove
+    data = data[~data.duplicated(['filename'])]
+
+    out_fname = create_name_from_path(anno_file, 'clean')
+    data.to_csv(out_fname)
+
+    return
+
+# KernelPheno.add_command(clean_report)
+
+
 def _get_img_name(subject_data_entry):
     subject_data = json.loads(subject_data_entry)
     # peel away data structure layers and return
@@ -174,7 +205,9 @@ if __name__ == '__main__':
 
     import sys
 
-    if len(sys.argv) == 2:
-        zooexp(sys.argv[1])
-    else:
-        zooexp("/home/apages/pysrc/KernelPheno/data/sample_zoo_export.csv")
+    clean_report(r'/mnt/d/SCHNABLELAB/pysrc/KernelPheno/report.csv')
+
+    # if len(sys.argv) == 2:
+    #     zooexp(sys.argv[1])
+    # else:
+    #     zooexp("/home/apages/pysrc/KernelPheno/data/sample_zoo_export.csv")

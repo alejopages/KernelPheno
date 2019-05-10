@@ -3,7 +3,7 @@ import os.path as osp
 import matplotlib.pyplot as plt
 import logging
 
-from .logger import get_logger
+from logger import get_logger
 
 log = get_logger(level=logging.DEBUG)
 
@@ -41,8 +41,12 @@ def create_name_from_path(file_path, pre_ext=[], out_dir=False):
             log.debug("Ommitting from final filename")
             pre_ext.pop(i)
 
+    if pre_ext != []:
+        exts = "." + ".".join(pre_ext) + "."
+    else:
+        exts = "."
     out_path    = ".".join(file_path.split(".")[:-1]) \
-                + "." + ".".join(pre_ext) + "." \
+                +  exts \
                 + file_path.split(".")[-1]
     if out_dir:
         out_path = osp.join(
