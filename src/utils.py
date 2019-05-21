@@ -9,8 +9,7 @@ log = get_logger(level=logging.DEBUG)
 
 def get_image_regex_pattern(extension=()):
     '''
-    Returns a regex pattern useful for grabbing filenames with image filename
-    extensions
+    Returns a regex object useful for grabbing files with image filename extensions
     '''
     if extension == ():
         return re.compile(r".*\.(tif|tiff|jpg|jpeg|png)")
