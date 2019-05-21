@@ -215,9 +215,10 @@ def get_thumbnails(img, out_dir=False):
     bboxes = get_sorted_bboxes(img)
     thumbnails = []
     for minr, minc, maxr, maxc in bboxes:
-        plt.imshow(img[minr:maxr, minc:maxc], cmap=gray)
-        plt.show()
+#         plt.imshow(img[minr:maxr, minc:maxc], cmap=gray)
+#         plt.show()
         thumbnails.append(img[minr:maxr, minc:maxc])
+    return thumbnails
 
 
 def test_get_thumbnails():
