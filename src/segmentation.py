@@ -92,8 +92,8 @@ def normalize_images(img_paths, out_dir=False, plot=False, cmap=None):
 
 def draw_bounding_boxes(img_paths, out_dir=False, cmap=None):
     '''
-    Takes the minr minc maxr maxc coordinates of bounding boxes
-    and plots bboxes on the image
+    Takes the minimum and maximum row and column coordinates of bounding boxes
+    and plots bboxes on the image. Format for input tuple = (minr, minc, maaxr, maxc)
     '''
     print('Drawing Bounding Boxes')
 
@@ -227,7 +227,12 @@ def test_get_thumbnails():
 
 
 def _get_filter(image):
-
+    # TODO: test this function
+    if not is_gray(image):
+        image = rgb2gray(image)
+    thresh = thresh_otsu(image)
+    bw = closing(image > thresh, square(3))
+    return bw
 
 
 def _get_bg_avg(img_paths, cmap=None):
