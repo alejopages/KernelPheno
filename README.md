@@ -1,7 +1,7 @@
 # KernelPheno
 Kernel Phenotyping project management and computational pipelines
 
-#TODO:
+## TODO:
 
 kmeans
 
