@@ -8,6 +8,10 @@ kmeans
 * plot bar plot of pixel distribution
 * plot mean selected by kmeans algorithm
 
+Re-evaluting training dataset annotations:
+* take all grayscale annotated images and pair them with their RGB images. 
+* Re-upload to zooniverse and have leandra validate the annotations
+
 Training:
   CNN:
     We need to determine if we have enough training data after data augmentation
