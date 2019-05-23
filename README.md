@@ -3,7 +3,7 @@ Kernel Phenotyping project management and computational pipelines
 
 ## TODO:
 
-kmeans
+Determining background pixel means:
 
 * plot bar plot of pixel distribution
 * plot mean selected by kmeans algorithm
