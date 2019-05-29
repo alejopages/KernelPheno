@@ -2,6 +2,7 @@
 
 # Add image files if they end up here
 # too large for repo
+data/datasets
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
