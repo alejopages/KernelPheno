@@ -111,15 +111,15 @@ def create_summary_report(dataframe):
 
 
 
-# @click.command()
-# @click.argument(
-#     'report'
-# )
+@click.command()
+@click.argument(
+    'annofile'
+)
 
-def clean_report(anno_file):
+def clean_report(annofile):
     ''' Clean the report '''
     try:
-        data = pd.read_csv(anno_file)
+        data = pd.read_csv(annofile)
     except FileNotFoundError as fnfe:
         print(fnfe)
         exit()
@@ -133,12 +133,12 @@ def clean_report(anno_file):
     # remove duplicate entries, pandas decides which ones to remove
     data = data[~data.duplicated(['filename'])]
 
-    out_fname = create_name_from_path(anno_file, 'clean')
+    out_fname = create_name_from_path(annofile, 'clean')
     data.to_csv(out_fname)
 
     return
 
-# KernelPheno.add_command(clean_report)
+KernelPheno.add_command(clean_report)
 
 
 def _get_img_name(subject_data_entry):

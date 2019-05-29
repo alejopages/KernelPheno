@@ -4,7 +4,7 @@ from skimage.color import rgb2gray
 from skimage.measure import label, regionprops
 from skimage.filters import threshold_otsu, gaussian
 from skimage.color import label2rgb
-from skimage.morphology import closing, square
+from skimage.morphology import binary_closing, binary_opening, square
 from skimage.util import invert
 from skimage import img_as_float, img_as_int
 
@@ -14,9 +14,12 @@ import matplotlib.patches as mpatches
 import os.path as osp
 import os
 import argparse
+import logging
 
-from utils import create_name_from_path, show_image
+from logger import get_logger
+from utils import create_name_from_path, show_image, is_gray
 
+log = get_logger(level=logging.DEBUG)
 
 def normalize_images(img_paths, out_dir=False, plot=False, cmap=None):
     '''
@@ -44,13 +47,13 @@ def normalize_images(img_paths, out_dir=False, plot=False, cmap=None):
         except FileNotFoundError as fnfe:
             print(fnfe)
 
-        filter = _get_filter(img)
+        filter = get_filter(img)
         masked = img.copy()
 
         if cmap == 'gray':
-            masked[invert(filter)] = 0
+            masked[~filter] = 0
         else:
-            masked[invert(filter)] = [0,0,0]
+            masked[~filter] = [0,0,0]
 
         diff = bg_avg - np.mean(masked)
 
@@ -140,12 +143,12 @@ def plot_bbx(img, regions, ax, cmap=None, out=None):
 def segment_images(img_paths, out_dir=False):
     for img_file in img_paths:
         img = imread(img_file)
-        filter = _get_filter(img)
+        filter = get_filter(img)
         filtered = img.copy()
         if len(img.shape) == 3:
-            filtered[filter] = [0,0,0]
+            filtered[~filter] = [0,0,0]
         else:
-            filtered[invert(filter)] = 0
+            filtered[~filter] = 0
         out_name = create_name_from_path(img_file, 'seg', out_dir=out_dir)
         show_image(filtered)
         imsave(out_name, filtered)
@@ -153,8 +156,8 @@ def segment_images(img_paths, out_dir=False):
 
 
 def get_sorted_bboxes(img):
-    filter = _get_filter(img)
-    label_image = label(invert(filter))
+    filter = get_filter(img)
+    label_image = label(~filter)
     coords = []
     for region in regionprops(label_image):
         if region.area < 1000 or region.area > 100000:
@@ -227,13 +230,26 @@ def test_get_thumbnails():
     return
 
 
-def _get_filter(image):
+def segment_image(image):
+    log.info('Segmenting image')
+    filter = get_filter(image)
+    if is_gray(image):
+        image[filter] = 0
+    else:
+        image[filter] = [0,0,0]
+    return image
+
+
+def get_filter(image):
     # TODO: test this function
     if not is_gray(image):
         image = rgb2gray(image)
-    thresh = thresh_otsu(image)
-    bw = closing(image > thresh, square(3))
-    return bw
+    thresh = threshold_otsu(image)
+    # clear speckled black pixels in the image
+    filter = binary_closing(image > thresh, selem=square(10))
+    # clear speckled white pixels in the image
+    filter = binary_opening(filter, selem=square(15))
+    return filter
 
 
 def _get_bg_avg(img_paths, cmap=None):
@@ -260,12 +276,12 @@ def _get_bg_avg(img_paths, cmap=None):
             print(fnfe)
             print('File: ' + img_file)
 
-        filter = _get_filter(img)
+        filter = get_filter(img)
         masked = img.copy()
         if cmap == 'gray':
-            masked[invert(filter)] = 0
+            masked[~filter] = 0
         else:
-            masked[invert(filter)] = [0,0,0]
+            masked[~filter] = [0,0,0]
 
         mean = np.mean(masked, axis=(0,1))
         print(mean)

@@ -27,6 +27,7 @@ from utils import (
     is_gray,
     create_name_from_path
 )
+from segmentation import segment_image, get_filter
 
 log = get_logger(level=logging.DEBUG)
 
@@ -45,8 +46,16 @@ log = get_logger(level=logging.DEBUG)
 @click.argument(
     'anno_file'
 )
+@click.option(
+    '-v',
+    '--verification',
+    help='Images are placed in directories named by annotation.\n \
+         This is to help you verify that the annotations are correct',
+    is_flag=True,
+    default=False
+)
 
-def generate_dataset(indir, outdir, anno_file):
+def generate_dataset(indir, outdir, anno_file, verification):
     '''
     Generate a dataset for CNN training
 
@@ -56,17 +65,24 @@ def generate_dataset(indir, outdir, anno_file):
     * anno_file: the path to the file of annotations
     '''
 
+    log.addHandler(logging.FileHandler(osp.join(outdir, 'log')))
+
     DIMS = (227,227,3)  # Input dims for AlexNet = (227,227,3)
 
     sp.run(['mkdir', '-p', outdir])
-    for i in range(1, 6):
-        sp.run(['mkdir', '-p', osp.join(outdir, str(i))])
+    if verification:
+        for i in range(1, 6):
+            sp.run(['mkdir', '-p', osp.join(outdir, str(i))])
+    else:
+        sp.run(['mkdir', '-p', osp.join(outdir, 'data')])
 
     bbox_dir = osp.join(outdir, 'bboxes')
     bbox_err_dir = osp.join(outdir, 'err_bboxes')
     sp.run(['mkdir', '-p', bbox_dir])
     sp.run(['mkdir', '-p', bbox_err_dir])
 
+    sp.run(['echo', 'filename,rating\n', '>',
+            osp.join(outdir, 'annotations.csv')])
     bbox_err_count = 0
 
     try:
@@ -79,6 +95,15 @@ def generate_dataset(indir, outdir, anno_file):
         exit()
 
     errlog = open(osp.join(outdir, "dataset_generation_errors.log"), "w")
+    annotation_file = open(osp.join(outdir, 'annotations.csv'), 'a')
+    annotation_file.write("filename,rating\n")
+    annotations_summary = {
+        '1': 0,
+        '2': 0,
+        '3': 0,
+        '4': 0,
+        '5': 0
+    }
 
     for i, row in annotations.iterrows():
         log.info("Processing " + row['filename'])
@@ -101,31 +126,49 @@ def generate_dataset(indir, outdir, anno_file):
         plot_bbx(image, bboxes)
 
         if len(bboxes) != row['num_objects']:
-            log.error("Count of objects in image did not match: ")
+            log.error("Count of objects in image did not match")
             errlog.write(image_path + " object count discrepency\n")
             out_fname = osp.join(bbox_err_dir, row['filename'])
-            plt.savefig(out_fname)
             bbox_err_count += 1
+            plt.savefig(out_fname)
+            plt.close('all')
             continue
         else:
             out_fname = osp.join(bbox_dir, row['filename'])
             plt.savefig(out_fname)
+            plt.close('all')
 
         # squash 2d list to 1d
         ratings = [entry for line in row['ratings'] for entry in line]
+        filtered_image = segment_image(image)
+
 
         log.info("Getting thumbnails")
         for j, bbox in enumerate(bboxes):
             anno = ratings[j]
             minr, minc, maxr, maxc = bbox
-            thumbnail = image[minr:maxr, minc:maxc]
+            thumbnail = filtered_image[minr:maxr, minc:maxc]
             resized = resize(thumbnail, DIMS)
             out_image = img_as_ubyte(resized)
-            out_fname = osp.join(outdir, str(anno), str(j) + "_" + row['filename'])
+            if verification:
+                out_fname = osp.join(outdir, str(anno), str(j) + "_" + row['filename'])
+            else:
+                out_fname = osp.join(outdir, 'data', str(j) + "_" + row['filename'])
+            annotation_file.write("{},{}\n".format(row['filename'], anno))
             imsave(out_fname, out_image)
+            annotations_summary[anno] += 1
 
-    log.info("Number of bbox errors: " + str(bbox_err_count))
+    annotation_file.close()
     errlog.close()
+
+    log.info("SUMMARY:")
+    log.info("Number of bbox errors: " + str(bbox_err_count))
+    for i in range(1,6):
+        log.info("Number of annotations with rating {}: {}".format(
+            i, annotations_summary[str(i)]))
+
+    num_samples = sum(list(annotations_summary.values()))
+    log.info("Total number of images: {}".format(num_samples))
 
     return
 
@@ -340,13 +383,13 @@ def norm(image, bg_avg):
 
     gray = True if is_gray(image) else False
     image = img_as_float(image)
-    filter = _get_background_filter(image)
+    filter = get_filter(image)
     masked = image.copy()
 
     if gray:
-        masked[filter] = 0
+        masked[~filter] = 0
     else:
-        masked[filter] = [0,0,0]
+        masked[~filter] = [0,0,0]
 
     diff = bg_avg - np.mean(masked, axis=(0,1))
 
@@ -372,17 +415,6 @@ def test_norm():
     plt.imshow(normed, cmap='gray')
     plt.show()
     return
-
-
-def segment_image(image):
-    log.info('Segmenting image')
-    filter = _get_background_filter(image)
-    masked = image.copy()
-    if is_gray(image):
-        masked[invert(filter)] = 255
-    else:
-        masked[invert(filter)] = [255,255,255]
-    return masked
 
 
 def get_bg_avg(indir, PATTERN, type):
@@ -411,13 +443,13 @@ def get_bg_avg(indir, PATTERN, type):
 
         image = img_as_float(image)
 
-        filter = _get_background_filter(image)
+        filter = get_filter(image)
         masked = image.copy()
 
         if type == 'gray':
-            masked[filter] = 0
+            masked[~filter] = 0
         else:
-            masked[filter] = [0,0,0]
+            masked[~filter] = [0,0,0]
 
         mean = np.mean(masked, axis=(0,1))
         sum += mean
@@ -454,8 +486,8 @@ def plot_bbx(image, bboxes):
 def get_sorted_bboxes(image):
     ''' Generate the sorted bounding boxes '''
     log.info('Getting sorted bounding boxes')
-    filter = _get_background_filter(image)
-    cleared = clear_border(filter)
+    filter = get_filter(image)
+    cleared = clear_border(invert(filter))
     label_image = label(cleared)
     coords = []
     for region in regionprops(label_image, coordinates='rc'):
@@ -500,14 +532,14 @@ def _sort_bbxs(regions, num_rows):
     return sorted_bbxs
 
 
-def _get_background_filter(image):
-    ''' Get's the binary filter of the segmented image '''
-    log.info('Getting image background filter')
-    if not is_gray(image):
-        image = rgb2gray(image)
-    thresh = threshold_otsu(image)
-    bw = closing(image > thresh, square(3))
-    return invert(bw)
+# def _get_background_filter(image):
+#     ''' Get's the binary filter of the segmented image '''
+#     log.info('Getting image background filter')
+#     if not is_gray(image):
+#         image = rgb2gray(image)
+#     thresh = threshold_otsu(image)
+#     bw = closing(image > thresh, square(3))
+#     return invert(bw)
 
 
 if __name__ == '__main__':
