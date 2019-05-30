@@ -6,7 +6,6 @@ from skimage.filters import threshold_otsu
 from skimage.morphology import closing, square
 from skimage.util import invert
 from skimage import img_as_float, img_as_ubyte
-from skimage.transform import resize
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -33,29 +32,11 @@ log = get_logger(level=logging.DEBUG)
 
 ''' GENERATE DATASET '''
 @click.command()
-@click.argument(
-    'indir'
-)
-@click.argument(
-    'outdir'
-)
-# @click.argument(
-#     'type',
-#     type=click.Choice(['gray', 'rgb'])
-# )
-@click.argument(
-    'anno_file'
-)
-@click.option(
-    '-v',
-    '--verification',
-    help='Images are placed in directories named by annotation.\n \
-         This is to help you verify that the annotations are correct',
-    is_flag=True,
-    default=False
-)
+@click.argument('indir')
+@click.argument('outdir')
+@click.argument('anno_file')
 
-def generate_dataset(indir, outdir, anno_file, verification):
+def generate_dataset(indir, outdir, anno_file):
     '''
     Generate a dataset for CNN training
 
@@ -65,12 +46,11 @@ def generate_dataset(indir, outdir, anno_file, verification):
     * anno_file: the path to the file of annotations
     '''
 
-
-    DIMS = (227,227,3)  # Input dims for AlexNet = (227,227,3)
-
     sp.run(['mkdir', '-p', outdir])
+    sp.run(['mkdir', '-p', osp.join(outdir, 'data')])
+
     for i in range(1, 6):
-        sp.run(['mkdir', '-p', osp.join(outdir, str(i))])
+        sp.run(['mkdir', '-p', osp.join(outdir, 'data', str(i))])
 
     fh = logging.FileHandler(osp.join(outdir, 'log'))
     fh.setLevel(logging.WARNING)
@@ -146,10 +126,16 @@ def generate_dataset(indir, outdir, anno_file, verification):
             # thumbnail = filtered_image[minr:maxr, minc:maxc]
             thumbnail = image[minr:maxr, minc:maxc]
 
-            out_fname = osp.join(outdir, str(anno), str(j) + "_" + row['filename']
+            out_fname = osp.join(
+                outdir, 'data',
+                str(anno),
+                str(j) + "_" + row['filename']
+            )
             imsave(out_fname, thumbnail)
-
-            annotation_file.write("{},{}\n".format(out_fname, anno))
+            annotation_file.write("{},{}\n".format(
+                str(j) + "_" + row['filename'],
+                anno)
+            )
             annotations_summary[anno] += 1
 
     annotation_file.close()

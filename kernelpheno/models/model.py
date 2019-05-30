@@ -19,7 +19,7 @@ class AlexNet:
         #Instantiate an empty self.model
         self.self.model = Sequential()
 
-        # 1st Convolutional Layer
+        # 1st Convolutional Layer> 4 and len(sys.argv) < 7
         self.model.add(Conv2D(filters=96, input_shape=(224,224,3), kernel_size=(11,11), strides=(4,4), padding='valid'))
         self.model.add(Activation('relu'))
         # Max Pooling
@@ -79,8 +79,10 @@ class AlexNet:
         )
 
 
-    def train(self, model_name, data, outdir, epochs,
-              label_fname='annotations.csv', batch_size=32):
+    def train(self, model_name, data, outdir, epochs, batch_size):
+
+        epochs = int(epochs)
+        batch_size = int(batch_size)
 
         sp.run(['mkdir', '-p', osp.join(data, 'train')])
         sp.run(['mkdir', '-p', osp.join(data, 'train', 'tb')])
@@ -124,3 +126,14 @@ class AlexNet:
         print("Model has been saved")
         pickle.dump(hist.history, open(osp.join(data, 'train', "hist." + model_name, 'wb')))
         print("Model history saved")
+
+
+if __name__ == '__main__':
+    import sys
+
+    if len(sys.argv) == 6:
+        model = AlexNet()
+        model.train(*sys.argv[1:])
+    else:
+        print("USAGE: prog model_name datadir, outdir, epochs, batch_size")
+        print("ARGS PROVIDED: " + str(sys.argv))
