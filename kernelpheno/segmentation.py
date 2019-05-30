@@ -51,9 +51,9 @@ def normalize_images(img_paths, out_dir=False, plot=False, cmap=None):
         masked = img.copy()
 
         if cmap == 'gray':
-            masked[~filter] = 0
+            masked[filter] = 0
         else:
-            masked[~filter] = [0,0,0]
+            masked[filter] = [0,0,0]
 
         diff = bg_avg - np.mean(masked)
 
@@ -146,9 +146,9 @@ def segment_images(img_paths, out_dir=False):
         filter = get_filter(img)
         filtered = img.copy()
         if len(img.shape) == 3:
-            filtered[~filter] = [0,0,0]
+            filtered[filter] = [0,0,0]
         else:
-            filtered[~filter] = 0
+            filtered[filter] = 0
         out_name = create_name_from_path(img_file, 'seg', out_dir=out_dir)
         show_image(filtered)
         imsave(out_name, filtered)
@@ -157,7 +157,7 @@ def segment_images(img_paths, out_dir=False):
 
 def get_sorted_bboxes(img):
     filter = get_filter(img)
-    label_image = label(~filter)
+    label_image = label(filter)
     coords = []
     for region in regionprops(label_image):
         if region.area < 1000 or region.area > 100000:
@@ -279,9 +279,9 @@ def _get_bg_avg(img_paths, cmap=None):
         filter = get_filter(img)
         masked = img.copy()
         if cmap == 'gray':
-            masked[~filter] = 0
+            masked[filter] = 0
         else:
-            masked[~filter] = [0,0,0]
+            masked[filter] = [0,0,0]
 
         mean = np.mean(masked, axis=(0,1))
         print(mean)

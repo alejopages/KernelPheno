@@ -65,16 +65,16 @@ def generate_dataset(indir, outdir, anno_file, verification):
     * anno_file: the path to the file of annotations
     '''
 
-    log.addHandler(logging.FileHandler(osp.join(outdir, 'log')))
 
     DIMS = (227,227,3)  # Input dims for AlexNet = (227,227,3)
 
     sp.run(['mkdir', '-p', outdir])
-    if verification:
-        for i in range(1, 6):
-            sp.run(['mkdir', '-p', osp.join(outdir, str(i))])
-    else:
-        sp.run(['mkdir', '-p', osp.join(outdir, 'data')])
+    for i in range(1, 6):
+        sp.run(['mkdir', '-p', osp.join(outdir, str(i))])
+
+    fh = logging.FileHandler(osp.join(outdir, 'log'))
+    fh.setLevel(logging.WARNING)
+    log.addHandler(fh)
 
     bbox_dir = osp.join(outdir, 'bboxes')
     bbox_err_dir = osp.join(outdir, 'err_bboxes')
@@ -94,7 +94,6 @@ def generate_dataset(indir, outdir, anno_file, verification):
         log.error(fnfe)
         exit()
 
-    errlog = open(osp.join(outdir, "dataset_generation_errors.log"), "w")
     annotation_file = open(osp.join(outdir, 'annotations.csv'), 'a')
     annotation_file.write("filename,rating\n")
     annotations_summary = {
@@ -110,7 +109,6 @@ def generate_dataset(indir, outdir, anno_file, verification):
         image_path = osp.join(indir, row['filename'])
         if not osp.isfile(image_path):
             log.error("Could not locate " + str(image_path))
-            errlog.write(image_path + " DNE\n")
             continue
         try:
             image = imread(image_path)
@@ -127,7 +125,6 @@ def generate_dataset(indir, outdir, anno_file, verification):
 
         if len(bboxes) != row['num_objects']:
             log.error("Count of objects in image did not match")
-            errlog.write(image_path + " object count discrepency\n")
             out_fname = osp.join(bbox_err_dir, row['filename'])
             bbox_err_count += 1
             plt.savefig(out_fname)
@@ -140,26 +137,22 @@ def generate_dataset(indir, outdir, anno_file, verification):
 
         # squash 2d list to 1d
         ratings = [entry for line in row['ratings'] for entry in line]
-        filtered_image = segment_image(image)
-
+        # filtered_image = segment_image(image)
 
         log.info("Getting thumbnails")
         for j, bbox in enumerate(bboxes):
             anno = ratings[j]
             minr, minc, maxr, maxc = bbox
-            thumbnail = filtered_image[minr:maxr, minc:maxc]
-            resized = resize(thumbnail, DIMS)
-            out_image = img_as_ubyte(resized)
-            if verification:
-                out_fname = osp.join(outdir, str(anno), str(j) + "_" + row['filename'])
-            else:
-                out_fname = osp.join(outdir, 'data', str(j) + "_" + row['filename'])
-            annotation_file.write("{},{}\n".format(row['filename'], anno))
-            imsave(out_fname, out_image)
+            # thumbnail = filtered_image[minr:maxr, minc:maxc]
+            thumbnail = image[minr:maxr, minc:maxc]
+
+            out_fname = osp.join(outdir, str(anno), str(j) + "_" + row['filename']
+            imsave(out_fname, thumbnail)
+
+            annotation_file.write("{},{}\n".format(out_fname, anno))
             annotations_summary[anno] += 1
 
     annotation_file.close()
-    errlog.close()
 
     log.info("SUMMARY:")
     log.info("Number of bbox errors: " + str(bbox_err_count))
