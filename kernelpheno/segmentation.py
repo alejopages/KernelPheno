@@ -16,8 +16,8 @@ import os
 import argparse
 import logging
 
-from logger import get_logger
-from utils import create_name_from_path, show_image, is_gray
+from .logger import get_logger
+from .utils import create_name_from_path, show_image, is_gray
 
 log = get_logger(level=logging.DEBUG)
 

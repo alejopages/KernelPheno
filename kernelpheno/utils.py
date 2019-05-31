@@ -3,7 +3,7 @@ import os.path as osp
 import matplotlib.pyplot as plt
 import logging
 
-from logger import get_logger
+from .logger import get_logger
 
 log = get_logger(level=logging.DEBUG)
 

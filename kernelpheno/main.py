@@ -1,4 +1,4 @@
-from logger import get_logger
+from .logger import get_logger
 
 import click
 import logging
@@ -12,8 +12,8 @@ def KernelPheno():
 
 
 ''' COMMAND IMPORTS '''
-from zooexp import *
-from preprocess import (
+from .zooexp import *
+from .preprocess import (
     generate_dataset,
     convert,
     segment,

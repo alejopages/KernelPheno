@@ -18,15 +18,15 @@ import click
 import subprocess as sp
 import traceback as tb
 
-from logger import get_logger
-from main import KernelPheno
-from utils import (
+from .logger import get_logger
+from .main import KernelPheno
+from .utils import (
     get_image_regex_pattern,
     show_image,
     is_gray,
     create_name_from_path
 )
-from segmentation import segment_image, get_filter
+from .segmentation import segment_image, get_filter
 
 log = get_logger(level=logging.DEBUG)
 
@@ -138,7 +138,7 @@ def generate_dataset(indir, outdir, anno_file, validation_split):
             thumbnail = image[minr:maxr, minc:maxc]
 
             out_fname = osp.join(
-                outdir, 'data',
+                outdir, 'data', 'train',
                 str(anno),
                 str(j) + "_" + row['filename']
             )

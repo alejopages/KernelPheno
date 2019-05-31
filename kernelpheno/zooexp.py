@@ -1,5 +1,5 @@
-from main import KernelPheno
-from utils import create_name_from_path
+from .main import KernelPheno
+from .utils import create_name_from_path
 
 import os.path as osp
 import click
