@@ -3,6 +3,7 @@
 # Add image files if they end up here
 # too large for repo
 data/datasets
+test/alexnet
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
