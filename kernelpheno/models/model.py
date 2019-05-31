@@ -1,15 +1,17 @@
-import keras
-from keras.self.models import Sequential
-from keras.layers import Dense, Activation, Dropout, Flatten, Conv2D, MaxPooling2D
-from keras.layers.normalization import BatchNormalization
-from keras.preprocessing.image import ImageDataGenerator
-from keras.callbacks import TensorBoard
+from tensorflow.python import keras
+from tensorflow.python.keras.models import Sequential
+from tensorflow.python.keras.layers import Dense, Activation, Dropout, Flatten, Conv2D, MaxPooling2D
+from tensorflow.python.keras.layers import BatchNormalization
+from tensorflow.python.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.python.keras.callbacks import TensorBoard
 
 import pandas as pd
 import numpy as np
 
+import sys
 import pickle
 import subprocess as sp
+import os.path as osp
 
 np.random.seed(1000)
 
@@ -17,7 +19,7 @@ class AlexNet:
 
     def __init__(self):
         #Instantiate an empty self.model
-        self.self.model = Sequential()
+        self.model = Sequential()
 
         # 1st Convolutional Layer> 4 and len(sys.argv) < 7
         self.model.add(Conv2D(filters=96, input_shape=(224,224,3), kernel_size=(11,11), strides=(4,4), padding='valid'))
@@ -84,11 +86,14 @@ class AlexNet:
         epochs = int(epochs)
         batch_size = int(batch_size)
 
-        sp.run(['mkdir', '-p', osp.join(data, 'train')])
-        sp.run(['mkdir', '-p', osp.join(data, 'train', 'tb')])
-        sp.run(['mkdir', '-p', osp.join(data, 'train', 'verif')])
+        base = osp.join(outdir, 'train')
 
-        tensorboard = Tensorboard(log_dir=osp.join(outdir, 'train', 'tb'))
+        sp.run(['mkdir', '-p', base])
+        sp.run(['mkdir', '-p', osp.join(base, 'models')])
+        sp.run(['mkdir', '-p', osp.join(base, 'tb')])
+        sp.run(['mkdir', '-p', osp.join(base, 'verif')])
+
+        tensorboard = TensorBoard(log_dir=osp.join(base, 'tb'))
         datagen = ImageDataGenerator(
             horizontal_flip=True,
             vertical_flip=True,
@@ -98,7 +103,7 @@ class AlexNet:
             directory=data,
             target_size=(224,224,3),
             class_mode='other',
-            save_to_dir=osp.join(outdir, 'train', 'verif'),
+            save_to_dir=osp.join(base, 'verif'),
             subset='training',
             classes=range(1,6)
         )
@@ -106,12 +111,11 @@ class AlexNet:
             directory=data,
             target_size=(224,224,3),
             class_mode='other',
-            save_to_dir=osp.join(outdir, 'train', 'verif'),
+            save_to_dir=osp.join(base, 'verif'),
             subset='validation',
             classes=range(1,6)
         )
 
-        print("Training model")
         hist = self.model.fit_generator(
             train_dg,
             steps_per_epoch=train_generator.samples // batch_size,
@@ -120,20 +124,18 @@ class AlexNet:
             callbacks=[tensorboard],
             epochs=epochs
         )
-        print("Model Trained")
 
-        hist = self.model.save(osp.join(outdir, 'train', model_name))
-        print("Model has been saved")
-        pickle.dump(hist.history, open(osp.join(data, 'train', "hist." + model_name, 'wb')))
+        hist = self.model.save(osp.join(base, 'models', model_name))
+        print("Model saved")
+        pickle.dump(hist.history, open(osp.join(base, 'models', 'hist.' + model_name), 'wb'))
         print("Model history saved")
 
 
 if __name__ == '__main__':
-    import sys
 
     if len(sys.argv) == 6:
         model = AlexNet()
         model.train(*sys.argv[1:])
     else:
-        print("USAGE: prog model_name datadir, outdir, epochs, batch_size")
+        print("USAGE: prog model_name datadir outdir epochs batch_size")
         print("ARGS PROVIDED: " + str(sys.argv))
