@@ -8,6 +8,7 @@ from tensorflow.python.keras.callbacks import TensorBoard
 import pandas as pd
 import numpy as np
 
+from math import ceil
 import sys
 import pickle
 import subprocess as sp
@@ -68,7 +69,7 @@ class AlexNet:
         self.model.add(Dropout(0.4))
 
         # Output Layer
-        self.model.add(Dense(17))
+        self.model.add(Dense(5))
         self.model.add(Activation('softmax'))
 
         self.model.summary()
@@ -97,32 +98,38 @@ class AlexNet:
         sp.run(['mkdir', '-p', osp.join(base, 'verif', 'valid')])
 
         tensorboard = TensorBoard(log_dir=osp.join(base, 'tb'))
-        datagen = ImageDataGenerator(
+        train_dg = ImageDataGenerator(
+            rescale=1./255,
             horizontal_flip=True,
             vertical_flip=True
         )
-        train_dg.flow_from_directory(
+        valid_dg = ImageDataGenerator(
+            rescale=1./255
+        )
+        train_generator = train_dg.flow_from_directory(
+            batch_size = batch_size,
             directory=osp.join(data, 'train'),
-            target_size=(224,224,3),
-            class_mode='other',
+            target_size=(224,224),
+            class_mode='categorical',
             save_to_dir=osp.join(base, 'verif', 'train'),
             subset='training',
-            classes=range(1,6)
+            classes=[str(i) for i in range(1,6)]
         )
-        valid_dg.flow_from_directory(
+        valid_generator = valid_dg.flow_from_directory(
+            batch_size = batch_size,
             directory=osp.join(data, 'valid'),
-            target_size=(224,224,3),
-            class_mode='other',
+            target_size=(224,224),
+            class_mode='categorical',
             save_to_dir=osp.join(base, 'verif', 'valid'),
             subset='validation',
-            classes=range(1,6)
+            classes=[str(i) for i in range(1,6)]
         )
 
         hist = self.model.fit_generator(
-            train_dg,
-            steps_per_epoch=train_generator.samples // batch_size,
-            validation_data=valid_dg,
-            validation_steps=valid_dg.samples // batch_size,
+            train_generator,
+            steps_per_epoch=ceil(len(train_generator) / batch_size),
+            validation_data=valid_generator,
+            validation_steps=ceil(len(valid_generator) / batch_size),
             callbacks=[tensorboard],
             epochs=epochs
         )
