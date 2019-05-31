@@ -81,7 +81,8 @@ class AlexNet:
         )
 
 
-    def train(self, model_name, data, outdir, epochs, batch_size):
+    def train(self, model_name, data, outdir, epochs, batch_size,
+              validation_split=0.2):
 
         epochs = int(epochs)
         batch_size = int(batch_size)
@@ -92,26 +93,27 @@ class AlexNet:
         sp.run(['mkdir', '-p', osp.join(base, 'models')])
         sp.run(['mkdir', '-p', osp.join(base, 'tb')])
         sp.run(['mkdir', '-p', osp.join(base, 'verif')])
+        sp.run(['mkdir', '-p', osp.join(base, 'verif', 'train')])
+        sp.run(['mkdir', '-p', osp.join(base, 'verif', 'valid')])
 
         tensorboard = TensorBoard(log_dir=osp.join(base, 'tb'))
         datagen = ImageDataGenerator(
             horizontal_flip=True,
-            vertical_flip=True,
-            validation_split=0.2
+            vertical_flip=True
         )
         train_dg.flow_from_directory(
-            directory=data,
+            directory=osp.join(data, 'train'),
             target_size=(224,224,3),
             class_mode='other',
-            save_to_dir=osp.join(base, 'verif'),
+            save_to_dir=osp.join(base, 'verif', 'train'),
             subset='training',
             classes=range(1,6)
         )
         valid_dg.flow_from_directory(
-            directory=data,
+            directory=osp.join(data, 'valid'),
             target_size=(224,224,3),
             class_mode='other',
-            save_to_dir=osp.join(base, 'verif'),
+            save_to_dir=osp.join(base, 'verif', 'valid'),
             subset='validation',
             classes=range(1,6)
         )

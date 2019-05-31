@@ -35,8 +35,14 @@ log = get_logger(level=logging.DEBUG)
 @click.argument('indir')
 @click.argument('outdir')
 @click.argument('anno_file')
+@click.option(
+    '-v',
+    '--validation_split',
+    nargs=1,
+    default=0.2
+)
 
-def generate_dataset(indir, outdir, anno_file):
+def generate_dataset(indir, outdir, anno_file, validation_split):
     '''
     Generate a dataset for CNN training
 
@@ -46,15 +52,20 @@ def generate_dataset(indir, outdir, anno_file):
     * anno_file: the path to the file of annotations
     '''
 
-    sp.run(['mkdir', '-p', outdir])
-    sp.run(['mkdir', '-p', osp.join(outdir, 'data')])
 
-    for i in range(1, 6):
-        sp.run(['mkdir', '-p', osp.join(outdir, 'data', str(i))])
+    sp.run(['mkdir', '-p', outdir])
 
     fh = logging.FileHandler(osp.join(outdir, 'log'))
     fh.setLevel(logging.WARNING)
     log.addHandler(fh)
+
+    sp.run(['mkdir', '-p', osp.join(outdir, 'data')])
+    sp.run(['mkdir', '-p', osp.join(outdir, 'data', 'train')])
+    sp.run(['mkdir', '-p', osp.join(outdir, 'data', 'valid')])
+
+    for i in range(1, 6):
+        sp.run(['mkdir', '-p', osp.join(outdir, 'data', 'train', str(i))])
+        sp.run(['mkdir', '-p', osp.join(outdir, 'data', 'valid', str(i))])
 
     bbox_dir = osp.join(outdir, 'bboxes')
     bbox_err_dir = osp.join(outdir, 'err_bboxes')
@@ -104,7 +115,7 @@ def generate_dataset(indir, outdir, anno_file):
         plot_bbx(image, bboxes)
 
         if len(bboxes) != row['num_objects']:
-            log.error("Count of objects in image did not match")
+            log.error("Count of objects in image did not match: " + row['filename'])
             out_fname = osp.join(bbox_err_dir, row['filename'])
             bbox_err_count += 1
             plt.savefig(out_fname)
@@ -139,6 +150,8 @@ def generate_dataset(indir, outdir, anno_file):
             annotations_summary[anno] += 1
 
     annotation_file.close()
+    log.info("Generating validation dataset")
+    generate_validation_dataset(osp.join(datadir, 'data'), validation_split)
 
     log.info("SUMMARY:")
     log.info("Number of bbox errors: " + str(bbox_err_count))
@@ -153,6 +166,35 @@ def generate_dataset(indir, outdir, anno_file):
 
 
 KernelPheno.add_command(generate_dataset)
+
+
+def generate_validation_dataset(datadir, validation_split):
+    ''' Generate the validation dataset '''
+    PATTERN = get_image_regex_pattern()
+
+    train_dir = osp.join(datadir, 'train')
+    validation_files = {}
+
+    for dirpath, dirnames, filenames in os.walk(datadir):
+        num_validation_examples = round(len(filenames) * validation_split)
+        validation_files[osp.basename(dirpath)] = \
+                np.random.choice(
+                    filenames,
+                    size = num_validation_examples
+                )
+
+    for rating, filenames in validation_files.items():
+        for filename in filenames:
+            log.info("Moving file to validation set " + filename)
+            file = osp.join(train_dir, rating, filename)
+            sp.run(['mv', file,
+                osp.join(
+                    datadir,
+                    'valid',
+                    osp.basename(osp.dirname(file)),
+                    osp.basename(file)
+                )]
+            )
 
 
 ''' CONVERSION FROM MISC IMAGE FORMATS TO JPG OR OTHERWISE SPECIFIED FORMAT '''
@@ -522,6 +564,7 @@ def _sort_bbxs(regions, num_rows):
 
 
 if __name__ == '__main__':
-    generate_dataset(r'/home/apages/SCHNABLELAB/pysrc/KernelPheno/data/images',
-                     r'/home/apages/SCHNABLELAB/pysrc/KernelPheno/data/dataset',
-                     r'/home/apages/SCHNABLELAB/pysrc/KernelPheno/report.clean.csv')
+    generate_validation_dataset("/home/apages/pysrc/KernelPheno/data/datasets/gray_normed_unsegged/data", 0.2)
+    # generate_dataset(r'/home/apages/SCHNABLELAB/pysrc/KernelPheno/data/images',
+    #                  r'/home/apages/SCHNABLELAB/pysrc/KernelPheno/data/dataset',
+    #                  r'/home/apages/SCHNABLELAB/pysrc/KernelPheno/report.clean.csv')
