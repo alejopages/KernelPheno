@@ -151,7 +151,7 @@ def generate_dataset(indir, outdir, anno_file, validation_split):
 
     annotation_file.close()
     log.info("Generating validation dataset")
-    generate_validation_dataset(osp.join(datadir, 'data'), validation_split)
+    split_validation(osp.join(data, 'data'), validation_split)
 
     log.info("SUMMARY:")
     log.info("Number of bbox errors: " + str(bbox_err_count))
@@ -168,35 +168,55 @@ def generate_dataset(indir, outdir, anno_file, validation_split):
 KernelPheno.add_command(generate_dataset)
 
 
-def generate_validation_dataset(datadir, validation_split):
+@click.command()
+@click.argument('datadir')
+@click.option(
+    '-split',
+    nargs=1,
+    default=0.2
+) 
+def split_validation(datadir, split):
     ''' Generate the validation dataset '''
+    
+    assert (0 < split < 1.0)
+    assert osp.isdir(datadir)
+
     PATTERN = get_image_regex_pattern()
 
+    datadir = osp.abspath(datadir)
     train_dir = osp.join(datadir, 'train')
     validation_files = {}
 
-    for dirpath, dirnames, filenames in os.walk(datadir):
-        num_validation_examples = round(len(filenames) * validation_split)
+    for dirpath, dirnames, filenames in os.walk(train_dir):
+        image_files = [file for file in filenames if PATTERN.match(file)]
+        num_examples = round(len(image_files) * split)
+        
+        if num_examples < 1: continue
+        
         validation_files[osp.basename(dirpath)] = \
                 np.random.choice(
                     filenames,
-                    size = num_validation_examples
+                    size = num_examples
                 )
 
     for rating, filenames in validation_files.items():
         for filename in filenames:
-            log.info("Moving file to validation set " + filename)
+            log.info("Moving file to validation set " + osp.join(rating, filename))
             file = osp.join(train_dir, rating, filename)
-            sp.run(['mv', file,
-                osp.join(
-                    datadir,
-                    'valid',
-                    osp.basename(osp.dirname(file)),
-                    osp.basename(file)
-                )]
-            )
+            try:
+                sp.run(['mv', file,
+                    osp.join(
+                        datadir,
+                        'valid',
+                        osp.basename(osp.dirname(file)),
+                        osp.basename(file)
+                    )]
+                )
+            except sp.CalledProcessError as cpe:
+                log.error(cpe)
+            
 
-
+KernelPheno.add_command(split_validation)
 ''' CONVERSION FROM MISC IMAGE FORMATS TO JPG OR OTHERWISE SPECIFIED FORMAT '''
 
 @click.command()

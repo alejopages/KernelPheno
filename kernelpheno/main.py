@@ -15,6 +15,7 @@ def KernelPheno():
 from .zooexp import *
 from .preprocess import (
     generate_dataset,
+    split_validation,
     convert,
     segment,
     normalize,
