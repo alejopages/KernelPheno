@@ -106,30 +106,37 @@ class AlexNet:
         valid_dg = ImageDataGenerator(
             rescale=1./255
         )
+
+        classes = ['0', '1', '2', '3', '4']
+
         train_generator = train_dg.flow_from_directory(
-            batch_size = batch_size,
+            batch_size=batch_size,
             directory=osp.join(data, 'train'),
             target_size=(224,224),
             class_mode='categorical',
             save_to_dir=osp.join(base, 'verif', 'train'),
-            subset='training',
-            classes=[str(i) for i in range(1,6)]
+#            subset='training',
+            shuffle=False,
+            color_mode='rgb',
+            classes=classes
         )
         valid_generator = valid_dg.flow_from_directory(
-            batch_size = batch_size,
+            batch_size=batch_size,
             directory=osp.join(data, 'valid'),
             target_size=(224,224),
             class_mode='categorical',
             save_to_dir=osp.join(base, 'verif', 'valid'),
-            subset='validation',
-            classes=[str(i) for i in range(1,6)]
+#            subset='validation',
+            shuffle=False,
+            color_mode='rgb',
+            classes=classes
         )
 
         hist = self.model.fit_generator(
-            train_generator,
-            steps_per_epoch=ceil(len(train_generator) / batch_size),
+            generator=train_generator,
+            steps_per_epoch=train_generator.n // train_generator.batch_size,
             validation_data=valid_generator,
-            validation_steps=ceil(len(valid_generator) / batch_size),
+            validation_steps=valid_generator.n // valid_generator.batch_size,
             callbacks=[tensorboard],
             epochs=epochs
         )
