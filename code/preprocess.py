@@ -62,11 +62,10 @@ def dataset(indir, outdir, anno_file, validation_split):
 
     sp.run(['mkdir', '-p', data])
     sp.run(['mkdir', '-p', osp.join(data, 'train')])
-    sp.run(['mkdir', '-p', osp.join(data, 'valid')])
+    # sp.run(['mkdir', '-p', osp.join(data, 'valid')]) # handled by split_val
 
     for i in range(1, 6):
         sp.run(['mkdir', '-p', osp.join(data, 'train', str(i))])
-        sp.run(['mkdir', '-p', osp.join(data, 'valid', str(i))])
 
     bbox_dir = osp.join(outdir, 'bboxes')
     bbox_err_dir = osp.join(outdir, 'err_bboxes')
@@ -152,7 +151,7 @@ def dataset(indir, outdir, anno_file, validation_split):
 
     annotation_file.close()
     log.info("Generating validation dataset")
-    split_val(osp.join(data, 'data'), validation_split)
+    split_val(data, validation_split)
 
     log.info("SUMMARY:")
     log.info("Number of bbox errors: " + str(bbox_err_count))
@@ -171,6 +170,11 @@ def split_val(datadir, split):
 
     assert (0 < split < 1.0)
     assert osp.isdir(datadir)
+
+    sp.run(['mkdir', '-p', osp.join(datadir, 'valid')])
+
+    for i in range(1, 6):
+        sp.run(['mkdir', '-p', osp.join(datadir, 'valid', str(i))])
 
     PATTERN = get_image_regex_pattern()
 
