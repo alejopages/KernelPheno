@@ -1,4 +1,5 @@
 *.~lock*
+*.swp
 
 # Add image files if they end up here
 # too large for repo
