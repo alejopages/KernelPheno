@@ -4,7 +4,7 @@ from tensorflow.python.keras.layers import Dense, Activation, Dropout, Flatten, 
 from tensorflow.python.keras.layers import BatchNormalization
 from tensorflow.python.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.python.keras.callbacks import TensorBoard
-
+from tensorflow.python.client import device_lib
 import pandas as pd
 import numpy as np
 
@@ -77,7 +77,7 @@ class AlexNet:
         # Compile the self.model
         self.model.compile(
             loss=keras.losses.mean_squared_error,
-            optimizer='adam',
+            optimizer='adadelta',
             metrics=['accuracy']
         )
 
@@ -131,6 +131,10 @@ class AlexNet:
             color_mode='rgb',
             classes=classes
         )
+
+        print("Training model: ")
+        print("Devices: ")
+        print(device_lib.list_local_devices())
 
         hist = self.model.fit_generator(
             generator=train_generator,
