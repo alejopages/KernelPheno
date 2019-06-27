@@ -8,6 +8,7 @@ from tensorflow.python.keras.callbacks import TensorBoard
 import pandas as pd
 import numpy as np
 
+import click
 from math import ceil
 import sys
 import pickle
@@ -16,9 +17,26 @@ import os.path as osp
 
 np.random.seed(1000)
 
+
+@click.command()
+@click.argument('name')
+@click.argument('dataset')
+@click.argument('output')
+@click.argument('epochs')
+@click.argument('batch_size')
+@click.option('--classes', help='number of classes', nargs=1, default=5)
+
+def train_alex(name, dataset, output, epochs, batch_size, classes):
+    model = AlexNet(output_shape=classes)
+    model.train(name, dataset, output, epochs, batch_size)
+    return
+
+
 class AlexNet:
 
-    def __init__(self):
+    def __init__(self, output_shape=5):
+
+        self.output_shape = output_shape
         #Instantiate an empty self.model
         self.model = Sequential()
 
@@ -69,7 +87,7 @@ class AlexNet:
         self.model.add(Dropout(0.4))
 
         # Output Layer
-        self.model.add(Dense(5))
+        self.model.add(Dense(output_shape))
         self.model.add(Activation('softmax'))
 
         self.model.summary()
@@ -81,21 +99,19 @@ class AlexNet:
             metrics=['accuracy']
         )
 
-
-    def train(self, model_name, data, outdir, epochs, batch_size,
-              validation_split=0.2):
+    def train(self, name, dataset, output, epochs, batch_size):
 
         epochs = int(epochs)
         batch_size = int(batch_size)
 
-        base = osp.join(outdir, 'train')
+        base = osp.join(output, 'train')
 
         sp.run(['mkdir', '-p', base])
         sp.run(['mkdir', '-p', osp.join(base, 'models')])
         sp.run(['mkdir', '-p', osp.join(base, 'tb')])
         sp.run(['mkdir', '-p', osp.join(base, 'verif')])
-        sp.run(['mkdir', '-p', osp.join(base, 'verif', 'train')])
-        sp.run(['mkdir', '-p', osp.join(base, 'verif', 'valid')])
+#        sp.run(['mkdir', '-p', osp.join(base, 'verif', 'train')])
+#        sp.run(['mkdir', '-p', osp.join(base, 'verif', 'valid')])
 
         tensorboard = TensorBoard(log_dir=osp.join(base, 'tb'))
         train_dg = ImageDataGenerator(
@@ -107,14 +123,14 @@ class AlexNet:
             rescale=1./255
         )
 
-        classes = ['0', '1', '2', '3', '4']
+        classes = [str(n) for n in range(1, 1 + self.output_shape)]
 
         train_generator = train_dg.flow_from_directory(
             batch_size=batch_size,
-            directory=osp.join(data, 'train'),
+            directory=osp.join(dataset, 'train'),
             target_size=(224,224),
             class_mode='categorical',
-            save_to_dir=osp.join(base, 'verif', 'train'),
+#            save_to_dir=osp.join(base, 'verif', 'train'),
 #            subset='training',
             shuffle=False,
             color_mode='rgb',
@@ -122,10 +138,10 @@ class AlexNet:
         )
         valid_generator = valid_dg.flow_from_directory(
             batch_size=batch_size,
-            directory=osp.join(data, 'valid'),
+            directory=osp.join(dataset, 'valid'),
             target_size=(224,224),
             class_mode='categorical',
-            save_to_dir=osp.join(base, 'verif', 'valid'),
+#            save_to_dir=osp.join(base, 'verif', 'valid'),
 #            subset='validation',
             shuffle=False,
             color_mode='rgb',
@@ -141,17 +157,18 @@ class AlexNet:
             epochs=epochs
         )
 
-        hist = self.model.save(osp.join(base, 'models', model_name))
+        self.model.save(osp.join(base, 'models', name))
         print("Model saved")
-        pickle.dump(hist.history, open(osp.join(base, 'models', 'hist.' + model_name), 'wb'))
-        print("Model history saved")
 
 
 if __name__ == '__main__':
 
-    if len(sys.argv) == 6:
+    if len(sys.argv) >= 6:
+        kwargs = {}
+        if len(sys.argv) == 7:
+            kwargs['output_shape'] = sys.argv[6]
         model = AlexNet()
-        model.train(*sys.argv[1:])
+        model.train(*sys.argv[1:6], **kwargs)
     else:
-        print("USAGE: prog model_name datadir outdir epochs batch_size")
+        print("USAGE: prog model_name datadir outdir epochs batch_size [num_classes]")
         print("ARGS PROVIDED: " + str(sys.argv))
