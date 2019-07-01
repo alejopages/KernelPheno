@@ -41,8 +41,15 @@ log = get_logger(level=logging.DEBUG)
     default=0.2,
     type=float
 )
+@click.option(
+    '-s',
+    '--segment',
+    is_flag=True,
+    default=False,
+    help="Whether or not to apply the segmentation filter to the image"
+)
 
-def dataset(indir, outdir, anno_file, validation_split):
+def dataset(indir, outdir, anno_file, validation_split, segment):
     '''
     Generate a dataset for CNN training
 
@@ -128,13 +135,13 @@ def dataset(indir, outdir, anno_file, validation_split):
 
         # squash 2d list to 1d
         ratings = [entry for line in row['ratings'] for entry in line]
-        # filtered_image = segment_image(image)
+        if segment:
+            image = segment_image(image) 
 
         log.info("Getting thumbnails")
         for j, bbox in enumerate(bboxes):
             anno = ratings[j]
             minr, minc, maxr, maxc = bbox
-            # thumbnail = filtered_image[minr:maxr, minc:maxc]
             thumbnail = image[minr:maxr, minc:maxc]
 
             out_fname = osp.join(
